@@ -4,11 +4,14 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.util.*;
 
+import com.sun.xml.internal.bind.v2.runtime.reflect.opt.Const;
+
 public class DFAM {
 	
 	Map<String, DFAState> DFAStateSet=new HashMap<String,DFAState>();
 	Set<String> keyWords=new  HashSet<String>();
-	Set<String> alphabet=new HashSet<String>(); 	
+	Set<String> alphabet=new HashSet<String>();
+	final String EMPTY_STRING="@";
 	
 	public static void main(String[] args) {
 		// TODO Auto-generated method stub
@@ -102,6 +105,31 @@ public class DFAM {
 		}
 	}
 	
-	
+	public DFAState closure(HashSet<State> sset , String id){
+		Iterator<State> ite=sset.iterator();
+		State s=null;
+		HashSet<State> newSset=(HashSet<State>) sset.clone();
+		while(ite.hasNext()){							//cant add element to container when using iterator!! 
+			s=ite.next();
+			closure_op(s,newSset);
+		}
 		
+		DFAState dfaS=new DFAState(id);
+		while(ite.hasNext()){					 
+			s=ite.next();
+			dfaS.addstate(s.getId());
+		}
+		return dfaS;
+	}
+	
+	public void closure_op(State s,HashSet<State> sset){
+		Map map=s.getMap();
+		if(map.containsKey(EMPTY_STRING)){
+			Vector<State> ss=(Vector<State>) map.get(EMPTY_STRING);
+			for(State st:ss){
+				sset.add(st);
+				closure_op(st,sset);
+			}
+		}
+	}
 }
