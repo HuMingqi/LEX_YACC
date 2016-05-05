@@ -6,7 +6,7 @@ class State {
 	
 	private String id;
 	private Map<String, Vector<State>> map=new HashMap<String,Vector<State>>();//string is character
-	private boolean multiExit=false;		//same input , different shift
+	private boolean multiExit=false;		//same input , different shift->judge NFA IS DFA
 	
 	public State(String id){
 		this.id=id;
@@ -22,6 +22,10 @@ class State {
 	
 	public Map<String, Vector<State>> getMap(){
 		return map;
+	}
+	
+	public boolean isMultiExit(){
+		return multiExit;
 	}
 
 	public void put(String ch,State state){
@@ -71,6 +75,10 @@ class DFAState extends State{
 				}
 			}
 		}
+	}
+	
+	public String getSList(){
+		return statelist;
 	}
 	
 }

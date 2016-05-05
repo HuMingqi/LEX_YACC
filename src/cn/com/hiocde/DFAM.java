@@ -8,7 +8,7 @@ import com.sun.xml.internal.bind.v2.runtime.reflect.opt.Const;
 
 public class DFAM {
 	
-	Map<String, DFAState> DFAStateSet=new HashMap<String,DFAState>();
+	Map<String, State> DFAStateSet=new HashMap<String,State>();	 //a NFA maybe a DFA , so i use State not DFAState to imp polymorphism 
 	Set<String> keyWords=new  HashSet<String>();
 	Set<String> alphabet=new HashSet<String>();
 	final String EMPTY_STRING="@";
@@ -105,7 +105,22 @@ public class DFAM {
 		}
 	}
 	
-	public DFAState closure(HashSet<State> sset , String id){
+	public void NFA2DFA(Map<String, State> NFA){
+		boolean isDFA=true;
+		for(State s:NFA.values()){
+			if(s.isMultiExit()){
+				isDFA=false;				//it's not DFA
+			}
+		}		
+		
+		if(isDFA==true){
+			DFAStateSet=NFA;
+		}else{
+			//TODO
+		}
+	}
+	
+	public HashSet<State> closure(HashSet<State> sset){
 		Iterator<State> ite=sset.iterator();
 		State s=null;
 		HashSet<State> newSset=(HashSet<State>) sset.clone();
@@ -114,12 +129,15 @@ public class DFAM {
 			closure_op(s,newSset);
 		}
 		
+		return newSset;
+		/*
 		DFAState dfaS=new DFAState(id);
 		while(ite.hasNext()){					 
 			s=ite.next();
 			dfaS.addstate(s.getId());
 		}
 		return dfaS;
+		*/
 	}
 	
 	public void closure_op(State s,HashSet<State> sset){
@@ -132,4 +150,21 @@ public class DFAM {
 			}
 		}
 	}
+	
+	public HashSet<State> Move(HashSet<State> sset,String ch){
+		Iterator<State> ite=sset.iterator();
+		State s=null;
+		HashSet<State> newSset=new HashSet<State>();
+		Map map=null;
+		while(ite.hasNext()){							
+			s=ite.next();
+			map=s.getMap();
+			if(map.containsKey(ch)){
+				newSset.add((State) map.get(ch));
+			}
+		}
+		
+		return newSset;
+	}
+	
 }
