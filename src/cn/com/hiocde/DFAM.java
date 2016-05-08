@@ -35,7 +35,7 @@ public class DFAM {
 		try {
 			BufferedReader br = new BufferedReader(new FileReader(path));	
 			String line;
-			while((line=br.readLine())!=null){		//generate NFA
+			while((line=br.readLine())!=null){		//generate NFA , the NFA is made up of four sub-NFAs
 				if(line.startsWith("//")){
 					continue;
 				}
@@ -116,8 +116,79 @@ public class DFAM {
 		if(isDFA==true){
 			DFAStateSet=NFA;
 		}else{
-			//TODO
+			Queue<HashSet<State>> queue=new LinkedList<HashSet<State>>();
+			HashSet<State> startS=new HashSet<State>();
+			startS.add(NFA.get("S"));
+			startS=closure(startS);
+			queue.offer(startS);
+			
+			String stateCode=zipState(startS);
+			State dfaS=new DFAState(stateCode);			//statecode as id , it's convenient to index
+			DFAStateSet.put(stateCode, dfaS);			
+			
+			HashSet<State> ss=null;			
+			
+			while(!queue.isEmpty()){
+				ss=queue.poll();
+				dfaS=DFAStateSet.get(zipState(ss));			
+				
+				for(String ch:alphabet){
+					ss=closure(Move(ss,ch));				//state transfer
+					if(ss.isEmpty())	continue;
+					
+					stateCode=zipState(ss);
+					if(!DFAStateSet.containsKey(stateCode)){					
+						queue.offer(ss);
+						DFAStateSet.put(stateCode, new DFAState(stateCode));		//add new dfaState
+					}
+					dfaS.put(ch,DFAStateSet.get(stateCode));						//build map relation:ds-->dfaS									
+				}				
+			}
 		}
+	}
+	
+	public String zipState(HashSet<State> sset){			//hash function:stateSet --> stateCode
+		String stateCode=null;
+		String id=null;	
+		State s=null;
+		
+		Iterator<State> ite = sset.iterator();
+		while(ite.hasNext()){					 
+			s=ite.next();
+			id=s.getId();						//add id of state to statecode with up-order
+			
+			switch(id){							//special deal for start_state and terminal_state
+			case "S":
+				return "S";
+			case "Z1":
+				return "Z1";
+			case "Z2":
+				return "Z2";
+			case "Z3":
+				return "Z3";
+			case "Z4":
+				return "Z4";
+			}
+					
+			if(stateCode==null){
+				stateCode=id;
+			}else{
+				char idc=id.charAt(0);
+				int len=stateCode.length();
+				for(int i=0;i<len;++i){
+					if(idc>stateCode.charAt(i)){
+						if(i!=len-1){
+							String s0=stateCode.substring(0,i+1);
+							String s1=stateCode.substring(i+1,len);
+							stateCode=s0+id+s1;
+						}else{
+							stateCode+=id;
+						}					
+					}
+				}
+			}
+		}
+		return stateCode;
 	}
 	
 	public HashSet<State> closure(HashSet<State> sset){
@@ -129,25 +200,14 @@ public class DFAM {
 			closure_op(s,newSset);
 		}
 		
-		return newSset;
-		/*
-		DFAState dfaS=new DFAState(id);
-		while(ite.hasNext()){					 
-			s=ite.next();
-			dfaS.addstate(s.getId());
-		}
-		return dfaS;
-		*/
+		return newSset;		
 	}
 	
-	public void closure_op(State s,HashSet<State> sset){
-		Map map=s.getMap();
-		if(map.containsKey(EMPTY_STRING)){
-			Vector<State> ss=(Vector<State>) map.get(EMPTY_STRING);
-			for(State st:ss){
-				sset.add(st);
-				closure_op(st,sset);
-			}
+	public void closure_op(State s,HashSet<State> sset){		
+		Vector<State> ss=s.mapf(EMPTY_STRING);
+		for(State st:ss){
+			sset.add(st);
+			closure_op(st,sset);
 		}
 	}
 	
@@ -155,12 +215,14 @@ public class DFAM {
 		Iterator<State> ite=sset.iterator();
 		State s=null;
 		HashSet<State> newSset=new HashSet<State>();
-		Map map=null;
+		Vector<State> mappedS=null;
 		while(ite.hasNext()){							
-			s=ite.next();
-			map=s.getMap();
-			if(map.containsKey(ch)){
-				newSset.add((State) map.get(ch));
+			s=ite.next();	
+			mappedS=s.mapf(ch);
+			if(mappedS!=null){
+				for(State st:mappedS){
+					newSset.add(st);
+				}
 			}
 		}
 		

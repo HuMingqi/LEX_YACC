@@ -2,11 +2,11 @@ package cn.com.hiocde;
 
 import java.util.*;
 
-class State {
+class State {								//NFA State , maybe DFA
 	
-	private String id;
-	private Map<String, Vector<State>> map=new HashMap<String,Vector<State>>();//string is character
-	private boolean multiExit=false;		//same input , different shift->judge NFA IS DFA
+	protected String id;
+	protected Map<String, Vector<State>> map=new HashMap<String,Vector<State>>();//string is character
+	private boolean multiExit=false;		//judge NFA IS DFA in fact
 	
 	public State(String id){
 		this.id=id;
@@ -20,13 +20,14 @@ class State {
 		this.id = id;
 	}
 	
-	public Map<String, Vector<State>> getMap(){
+	/*public Map<String, Vector<State>> getMap(){			//getXXX is stupid style when XXX is a object which can be modified!!
 		return map;
 	}
+	*/
 	
 	public boolean isMultiExit(){
 		return multiExit;
-	}
+	}	
 
 	public void put(String ch,State state){
 		if(map.containsKey(ch)){
@@ -39,46 +40,33 @@ class State {
 		}			
 	}
 	
-	public State mapf(String ch){				//assume it's a DFA(also be determined from NFA)
-		if(map.containsKey(ch)){
-			return (State)map.get(ch).get(0);
+	public Vector<State> mapf(String ch){		//the method exports map , not using getMap style . it's stupid , users can modify map casually
+		if(map.containsKey(ch)){				
+			return map.get(ch);
 		}else{
 			return null;
 		}
 	}
+	
+	public State dfaMapf(String ch){
+		return null;
+	}
 }
 
-class DFAState extends State{
-	
-	private String statelist=null;				//zip NFA States with letter's up-order
+class DFAState extends State{	
 
 	public DFAState(String id) {
 		super(id);
 		// TODO Auto-generated constructor stub
-	}
+	}	
 	
-	public void addstate(String id){
-		if(statelist==null){
-			statelist=id;
+	@Override
+	public State dfaMapf(String ch){		//at first , i want to use "State mapf(String ch)",but its not override!! NO WAY..
+		if(map.containsKey(ch)){
+			return map.get(ch).get(0);
 		}else{
-			char idc=id.charAt(0);
-			int len=statelist.length();
-			for(int i=0;i<len;++i){
-				if(idc>statelist.charAt(i)){
-					if(i!=len-1){
-						String s0=statelist.substring(0,i+1);
-						String s1=statelist.substring(i+1,len);
-						statelist=s0+id+s1;
-					}else{
-						statelist+=id;
-					}					
-				}
-			}
+			return null;
 		}
-	}
-	
-	public String getSList(){
-		return statelist;
 	}
 	
 }
