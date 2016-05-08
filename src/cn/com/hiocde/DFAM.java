@@ -1,9 +1,14 @@
 package cn.com.hiocde;
 import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.FileReader;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.util.*;
 
+import sun.rmi.runtime.Log;
+
+import com.sun.org.apache.xml.internal.security.Init;
 import com.sun.xml.internal.bind.v2.runtime.reflect.opt.Const;
 
 public class DFAM {
@@ -13,9 +18,10 @@ public class DFAM {
 	Set<String> alphabet=new HashSet<String>();
 	final String EMPTY_STRING="@";
 	
-	public static void main(String[] args) {
-		// TODO Auto-generated method stub
-
+	public static void main(String[] args) { 
+		DFAM dfam=new DFAM();
+		dfam.init(args[0]);			//args[0] --- regular grammar file path
+		dfam.run(args[1]);			//args[1] --- source text file path
 	}
 
 	public void init(String path){			//according to regular grammar, construct NFA then convert to DFA
@@ -73,7 +79,65 @@ public class DFAM {
 			e.printStackTrace();
 		}
 		
+		NFA2DFA(NFAStateSet);
+	}
+	
+	public void run(String text_path){
+		State currentS=DFAStateSet.get("S");
+		BufferedReader br=null;
+		BufferedWriter bw=null;
 		
+		try {
+			br = new BufferedReader(new FileReader(text_path));	
+			bw =new BufferedWriter(new FileWriter("token_stream.txt",true));		//appending style to write 
+			char ch;
+			
+			while((ch=(char)br.read())!=-1){
+				if(ch=='\b'||ch=='\n'||ch=='\r'||ch=='\t'){
+					continue;
+				}
+				
+				currentS=currentS.mapf(ch+"").get(0);		//polymorphism
+				if(currentS!=null){
+					switch(currentS.getId()){
+					case "Z3":								//hit identifier(include key word) which is the most , so as the first item
+						if(alphabet.contains(currentS.getIdentifiedStr())){
+							bw.write("KEY_WORD "+currentS.getIdentifiedStr()+"\n");
+						}else{
+							bw.write("IDENTIFIER "+currentS.getIdentifiedStr()+"\n");
+						}											
+						break;
+					case "Z1":
+						bw.write("OPERATOR "+currentS.getIdentifiedStr()+"\n");						
+						break;
+					case "Z4":
+						bw.write("CONST "+currentS.getIdentifiedStr()+"\n");						
+						break;
+					case "Z2":
+						bw.write("LIMITER "+currentS.getIdentifiedStr()+"\n");						
+						break;
+					default:continue;
+					}
+					currentS=DFAStateSet.get("S");			//reset currentS as startS
+				}else{				
+					//TODO
+					System.out.println("Exist invalid word!");
+					return;
+				}
+			}
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} finally {
+			try {
+				br.close();
+				bw.close();
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}			
+		}
+		System.out.println("Lexcial analysis Succeed , Waiting for grammar analysis");
 	}
 	
 	public void productionToMap(Map<String,State> NFAStateSet,String prodc,State endS){

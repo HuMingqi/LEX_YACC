@@ -7,6 +7,7 @@ class State {								//NFA State , maybe DFA
 	protected String id;
 	protected Map<String, Vector<State>> map=new HashMap<String,Vector<State>>();//string is character
 	private boolean multiExit=false;		//judge NFA IS DFA in fact
+	protected String identifiedStr="";		//identified string current state
 	
 	public State(String id){
 		this.id=id;
@@ -27,7 +28,11 @@ class State {								//NFA State , maybe DFA
 	
 	public boolean isMultiExit(){
 		return multiExit;
-	}	
+	}
+	
+	public String getIdentifiedStr(){
+		return identifiedStr;
+	}
 
 	public void put(String ch,State state){
 		if(map.containsKey(ch)){
@@ -41,29 +46,31 @@ class State {								//NFA State , maybe DFA
 	}
 	
 	public Vector<State> mapf(String ch){		//the method exports map , not using getMap style . it's stupid , users can modify map casually
-		if(map.containsKey(ch)){				
+		if(map.containsKey(ch)){
+			for(State s:map.get(ch)){
+				s.identifiedStr=identifiedStr+ch;	//set identified string
+			}
 			return map.get(ch);
 		}else{
 			return null;
 		}
 	}
 	
-	public State dfaMapf(String ch){
-		return null;
-	}
 }
 
-class DFAState extends State{	
-
+class DFAState extends State{						//to be honest , this inheritance has less meaning
+													//because mapf has no natural difference when used.u can only use State class to imple DFA_STATE
 	public DFAState(String id) {
 		super(id);
 		// TODO Auto-generated constructor stub
 	}	
 	
 	@Override
-	public State dfaMapf(String ch){		//at first , i want to use "State mapf(String ch)",but its not override!! NO WAY..
+	public Vector<State> mapf(String ch){			//at first , i want to use "State mapf(String ch)",but its not override!! NO WAY..
 		if(map.containsKey(ch)){
-			return map.get(ch).get(0);
+			State dfaS= map.get(ch).get(0);
+			dfaS.identifiedStr=identifiedStr+ch;	//set identified string
+			return map.get(ch);
 		}else{
 			return null;
 		}
