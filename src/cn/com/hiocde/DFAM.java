@@ -16,7 +16,7 @@ public class DFAM {
 	Map<String, State> DFAStateSet=new HashMap<String,State>();	 //a NFA maybe a DFA , so i use State not DFAState to imp polymorphism 
 	Set<String> keyWords=new  HashSet<String>();
 	Set<String> alphabet=new HashSet<String>();
-	final String EMPTY_STRING="@";
+	final static String EMPTY_STRING=" ";
 	
 	public static void main(String[] args) { 
 		DFAM dfam=new DFAM();
@@ -24,7 +24,7 @@ public class DFAM {
 		dfam.run(args[1]);			//args[1] --- source text file path
 	}
 
-	public void init(String path){			//according to regular grammar, construct NFA then convert to DFA
+	public void init(String gpath){			//according to regular grammar, construct NFA then convert to DFA
 		Map<String, State> NFAStateSet=new HashMap<String,State>();
 		State startS=new State("S");
 		//State endS0=new State("Z0");				//Z represent end state
@@ -39,7 +39,7 @@ public class DFAM {
 		NFAStateSet.put("Z4",endS4);
 		
 		try {
-			BufferedReader br = new BufferedReader(new FileReader(path));	
+			BufferedReader br = new BufferedReader(new FileReader(gpath));	
 			String line;
 			while((line=br.readLine())!=null){		//generate NFA , the NFA is made up of four sub-NFAs
 				if(line.startsWith("//")){
@@ -47,27 +47,42 @@ public class DFAM {
 				}
 				switch(line){
 					case "#0":
-						while((line=br.readLine())!="#0"){
+						while(!"#0".equals(line=br.readLine())){		
+							if(line.startsWith("//")){
+								continue;
+							}
 							keyWords.add(line);
 						}
 						break;
 					case "#1":
-						while((line=br.readLine())!="#1"){
+						while(!"#1".equals(line=br.readLine())){
+							if(line.startsWith("//")){
+								continue;
+							}
 							productionToMap(NFAStateSet, line, endS1);
 						}
 						break;
 					case "#2":
-						while((line=br.readLine())!="#2"){
+						while(!"#2".equals(line=br.readLine())){
+							if(line.startsWith("//")){
+								continue;
+							}
 							productionToMap(NFAStateSet, line, endS2);
 						}
 						break;
 					case "#3":
-						while((line=br.readLine())!="#3"){
+						while(!"#3".equals(line=br.readLine())){
+							if(line.startsWith("//")){
+								continue;
+							}
 							productionToMap(NFAStateSet, line, endS3);
 						}
 						break;
 					case "#4":
-						while((line=br.readLine())!="#4"){
+						while(!"#4".equals(line=br.readLine())){
+							if(line.startsWith("//")){
+								continue;
+							}
 							productionToMap(NFAStateSet, line, endS4);
 						}
 						break;
@@ -84,88 +99,207 @@ public class DFAM {
 	
 	public void run(String text_path){
 		State currentS=DFAStateSet.get("S");
+		State oldS=null;		//the fore state of currentS
 		BufferedReader br=null;
 		BufferedWriter bw=null;
 		
 		try {
 			br = new BufferedReader(new FileReader(text_path));	
-			bw =new BufferedWriter(new FileWriter("token_stream.txt",true));		//appending style to write 
+			
+			String tokens_path=null;
+			int lastIndex;
+			if((lastIndex=text_path.lastIndexOf('/'))!=-1){
+				tokens_path=text_path.substring(0,lastIndex+1);
+			}else if((lastIndex=text_path.lastIndexOf("\\"))!=-1){	//***in code or storage , '\' is shift-meaning char
+				tokens_path=text_path.substring(0,lastIndex+1);		//***so in there,+1 not +2
+			}else{
+				System.out.println("Source Text Path Is Wrong!");
+				return;
+			}
+			bw =new BufferedWriter(new FileWriter(tokens_path+"token_stream.txt",false));		//non-appending style to write 
+						
+			int ich;
 			char ch;
 			
-			while((ch=(char)br.read())!=-1){
-				if(ch=='\b'||ch=='\n'||ch=='\r'||ch=='\t'){
+			while((ich=br.read())!=-1){					//***(ich=(char)br.read())!=-1 is wrong!!
+				ch=(char)ich;
+				if(ch==' '||ch=='\n'||ch=='\r'||ch=='\t'){		//***ch=='\b' capture space fail
 					continue;
-				}
+				}								
 				
-				currentS=currentS.mapf(ch+"").get(0);		//polymorphism
-				if(currentS!=null){
-					switch(currentS.getId()){
-					case "Z3":								//hit identifier(include key word) which is the most , so as the first item
-						if(alphabet.contains(currentS.getIdentifiedStr())){
-							bw.write("KEY_WORD "+currentS.getIdentifiedStr()+"\n");
-						}else{
-							bw.write("IDENTIFIER "+currentS.getIdentifiedStr()+"\n");
-						}											
-						break;
-					case "Z1":
-						bw.write("OPERATOR "+currentS.getIdentifiedStr()+"\n");						
-						break;
-					case "Z4":
-						bw.write("CONST "+currentS.getIdentifiedStr()+"\n");						
-						break;
-					case "Z2":
-						bw.write("LIMITER "+currentS.getIdentifiedStr()+"\n");						
-						break;
-					default:continue;
+				oldS=currentS;		
+				Vector<State> newS=currentS.mapf(ch+"");//polymorphism
+														//***you cant use mapf twice!!because of self_circle
+				if(newS!=null){	
+					currentS=newS.get(0);		
+					if(keyWords.contains(currentS.getIdentifiedStr())){			//check key word
+						bw.write("0 "+currentS.getIdentifiedStr()+"\n");
+						currentS=DFAStateSet.get("S");			//reset currentS as startS						
 					}
-					currentS=DFAStateSet.get("S");			//reset currentS as startS
+					continue;
 				}else{				
 					//TODO
-					System.out.println("Exist invalid word!");
-					return;
+					String id=oldS.getId();
+					if(id.length()>1&&id.charAt(id.length()-2)=='Z'){		//the olds is endS , matching the longest profix!!
+						//0-key_word 1-operator 2-limiter 3-identifier 4-const
+						if(keyWords.contains(oldS.getIdentifiedStr())){
+							bw.write("0 "+oldS.getIdentifiedStr()+"\n");
+						}else{
+							bw.write(id.charAt(id.length()-1)+" "+oldS.getIdentifiedStr()+"\n");
+						}												
+						
+						currentS=DFAStateSet.get("S");			//reset currentS as startS
+						newS=currentS.mapf(ch+"");
+						if(newS==null){
+							System.out.println("Existing invalid word!");
+							System.out.println("Identified String : "+oldS.getIdentifiedStr());
+							System.out.println("Error Character : "+ch);
+							
+							br.close();
+							bw.close();
+							return;
+						}else{
+							currentS=newS.get(0);
+						}						
+					}else{
+						System.out.println("Existing invalid word!");
+						System.out.println("Identified String : "+oldS.getIdentifiedStr());
+						System.out.println("Error Character : "+ch);
+
+						br.close();
+						bw.close();
+						return;
+					}					
 				}
 			}
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
-		} finally {
+		}
+		
+		String id=currentS.getId();
+		try{
+			if(id.length()>1&&id.charAt(id.length()-2)=='Z'){			
+				if(keyWords.contains(oldS.getIdentifiedStr())){				
+					bw.write("0 "+oldS.getIdentifiedStr()+"\n");				
+				}else{
+					bw.write(id.charAt(id.length()-1)+" "+currentS.getIdentifiedStr()+"\n");
+				}				
+				
+				System.out.println("Lexcial analysis succeed , waiting for grammar analysis");		//lexcial analysis succeed
+			}else{
+				System.out.println("Existing unterminated word!");
+				System.out.println("Identified String : "+currentS.getIdentifiedStr());					
+			}
+		}catch(IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}finally {
 			try {
 				br.close();
-				bw.close();
+				bw.close();			//***writing file now
 			} catch (IOException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}			
-		}
-		System.out.println("Lexcial analysis Succeed , Waiting for grammar analysis");
+		}		
 	}
 	
-	public void productionToMap(Map<String,State> NFAStateSet,String prodc,State endS){
-		if(prodc.length()==4){									//A->a					
-			char ch=prodc.charAt(0);										
-			if(NFAStateSet.containsKey(ch+"")==false){
-				State s=new State(ch+"");		
-				s.put(prodc.charAt(3)+"",endS);
-				NFAStateSet.put(s.getId(),s);
-			}else{
-				State s=NFAStateSet.get(ch+"");
-				s.put(prodc.charAt(3)+"", endS);
+	public void productionToMap(Map<String,State> NFAStateSet,String prodc,State endS){		//support shift meaning and meta char
+		char ch=prodc.charAt(0);
+		char ch3=prodc.charAt(3);
+		if(NFAStateSet.containsKey(ch+"")==false){				
+			NFAStateSet.put(ch+"",new State(ch+""));
+		}
+		
+		if(prodc.length()==4){							//***A->a										
+			String chs=ch3+"";
+			if(ch3=='@'){
+				chs=EMPTY_STRING;
 			}
-		}else{													//A->aB
-			char ch=prodc.charAt(0);			
+						
+			State s=NFAStateSet.get(ch+"");
+			if(ch3=='a'||ch3=='d'){
+				meta_char(s,endS,ch3+"");				//deal with meta char
+			}else{					
+				s.put(chs,endS);
+				
+				if(ch3!='@'){
+					alphabet.add(ch3+"");				//add into alphabet
+				}	
+				
+				System.out.println("NFA MAP : ("+ch+","+endS.getId()+","+ch3+")");		//output map
+			}								
+			
+		}else if(prodc.length()==5){							
+			char ch4=prodc.charAt(4);			
+			
+			if(ch3!='\\'){											//***A->aB					
+				if(NFAStateSet.containsKey(ch4+"")==false){			//if B not exist, new B add to stateSet
+					NFAStateSet.put(ch4+"",new State(ch4+""));
+				}				
+				
+				State s1=NFAStateSet.get(ch+"");
+				State s2=NFAStateSet.get(ch4+"");
+				if(ch3=='a'||ch3=='d'){
+					meta_char(s1,s2,ch3+"");				
+				}else{					
+					s1.put(ch3+"",s2);
+					alphabet.add(ch3+"");
+					
+					System.out.println("NFA MAP : ("+ch+","+ch4+","+ch3+")");		
+				}					
+			}else{													//***A->\a
+				String chs=ch4+"";				
+				
+				State s=NFAStateSet.get(ch+"");
+				s.put(chs,endS);
+				
+				alphabet.add(ch4+"");
+				
+				System.out.println("NFA MAP : ("+ch+","+endS.getId()+",\\"+ch4+")");		
+			}
+		}else{														//***A->\aB
 			char ch4=prodc.charAt(4);
-			if(NFAStateSet.containsKey(ch4+"")==false){			//if B not exist, new B add to stateSet
-				NFAStateSet.put(ch4+"",new State(ch4+""));
+			char ch5=prodc.charAt(5);
+			if(NFAStateSet.containsKey(ch5+"")==false){			//if B not exist, new B add to stateSet
+				NFAStateSet.put(ch5+"",new State(ch5+""));
 			}
-								
-			if(NFAStateSet.containsKey(ch+"")==false){
-				State s=new State(ch+"");								
-				s.put(prodc.charAt(3)+"",NFAStateSet.get(ch4+""));
-				NFAStateSet.put(s.getId(),s);
-			}else{
-				State s=NFAStateSet.get(ch+"");
-				s.put(prodc.charAt(3)+"", NFAStateSet.get(ch4+""));
-			}					
+			
+			State s1=NFAStateSet.get(ch);
+			State s2=NFAStateSet.get(ch5);
+			s1.put(ch4+"",s2);
+			
+			alphabet.add(ch4+"");
+			
+			System.out.println("NFA MAP : ("+ch+","+ch5+",\\"+ch4+")");
+		}
+	}
+	
+	public void meta_char(State s1,State s2,String meta){
+		switch(meta){
+		case "a":
+			for(char a='a';a<='z';++a){
+				s1.put(a+"", s2);
+				//String upperCase=(char)(a-32)+"";
+				//s1.put(upperCase,s2);
+				
+				alphabet.add(a+"");					//add into alphabet
+				//alphabet.add(upperCase);	
+				
+				System.out.println("NFA MAP : ("+s1.getId()+","+s2.getId()+","+a+")");		
+				//System.out.println("NFA MAP : ("+s1.getId()+","+s2.getId()+","+upperCase+")");
+			}
+			break;
+		case "d":
+			for(char integ='0';integ<='9';++integ){
+				s1.put(integ+"",s2);
+				
+				alphabet.add(integ+"");
+				
+				System.out.println("NFA MAP : ("+s1.getId()+","+s2.getId()+","+integ+")");
+			}
+			break;
 		}
 	}
 	
@@ -187,25 +321,31 @@ public class DFAM {
 			queue.offer(startS);
 			
 			String stateCode=zipState(startS);
-			State dfaS=new DFAState(stateCode);			//statecode as id , it's convenient to index
+			State dfaS=new DFAState(stateCode);			//statecode as id , it's convenient to index			
 			DFAStateSet.put(stateCode, dfaS);			
 			
 			HashSet<State> ss=null;			
+			HashSet<State> ss2=null;
 			
-			while(!queue.isEmpty()){
-				ss=queue.poll();
+			while(!queue.isEmpty()){				
+				ss=queue.poll();				
 				dfaS=DFAStateSet.get(zipState(ss));			
 				
 				for(String ch:alphabet){
-					ss=closure(Move(ss,ch));				//state transfer
-					if(ss.isEmpty())	continue;
+					ss2=closure(Move(ss,ch));				//state transfer
+					if(ss2.isEmpty())	continue;
 					
-					stateCode=zipState(ss);
-					if(!DFAStateSet.containsKey(stateCode)){					
-						queue.offer(ss);
+					stateCode=zipState(ss2);
+					if(!DFAStateSet.containsKey(stateCode)){							
+						queue.offer(ss2);
 						DFAStateSet.put(stateCode, new DFAState(stateCode));		//add new dfaState
 					}
-					dfaS.put(ch,DFAStateSet.get(stateCode));						//build map relation:ds-->dfaS									
+					dfaS.put(ch,DFAStateSet.get(stateCode));						//build map relation:ds-->dfaS
+										
+					if("@".equals(ch)){
+						ch="\\@";
+					}
+					System.out.println("DFA MAP : "+"("+dfaS.getId()+","+stateCode+","+ch+")");
 				}				
 			}
 		}
@@ -221,33 +361,34 @@ public class DFAM {
 			s=ite.next();
 			id=s.getId();						//add id of state to statecode with up-order
 			
-			switch(id){							//special deal for start_state and terminal_state
-			case "S":
+			if("S".equals(id)){
 				return "S";
-			case "Z1":
-				return "Z1";
-			case "Z2":
-				return "Z2";
-			case "Z3":
-				return "Z3";
-			case "Z4":
-				return "Z4";
-			}
+			}			
 					
 			if(stateCode==null){
 				stateCode=id;
 			}else{
+				if(id.charAt(0)=='Z'){
+					stateCode+=id;
+					continue;
+				}
+				
 				char idc=id.charAt(0);
 				int len=stateCode.length();
 				for(int i=0;i<len;++i){
-					if(idc>stateCode.charAt(i)){
-						if(i!=len-1){
-							String s0=stateCode.substring(0,i+1);
-							String s1=stateCode.substring(i+1,len);
-							stateCode=s0+id+s1;
+					if(idc<=stateCode.charAt(i)){	
+						if(i==0){
+							stateCode=id+stateCode;
 						}else{
+							String s0=stateCode.substring(0,i);
+							String s1=stateCode.substring(i);
+							stateCode=s0+id+s1;	
+						}
+						break;
+					}else{
+						if(i==len-1){
 							stateCode+=id;
-						}					
+						}
 					}
 				}
 			}
@@ -269,10 +410,14 @@ public class DFAM {
 	
 	public void closure_op(State s,HashSet<State> sset){		
 		Vector<State> ss=s.mapf(EMPTY_STRING);
-		for(State st:ss){
-			sset.add(st);
-			closure_op(st,sset);
-		}
+		//sset.add(s);
+		
+		if(ss!=null){
+			for(State st:ss){
+				sset.add(st);
+				closure_op(st,sset);
+			}
+		}		
 	}
 	
 	public HashSet<State> Move(HashSet<State> sset,String ch){

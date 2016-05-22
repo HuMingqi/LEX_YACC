@@ -6,7 +6,7 @@ class State {								//NFA State , maybe DFA
 	
 	protected String id;
 	protected Map<String, Vector<State>> map=new HashMap<String,Vector<State>>();//string is character
-	private boolean multiExit=false;		//judge NFA IS DFA in fact
+	private boolean multiExit=false;		//judge NFA IS DFA in fact through multivalue/empty edge
 	protected String identifiedStr="";		//identified string current state
 	
 	public State(String id){
@@ -39,6 +39,10 @@ class State {								//NFA State , maybe DFA
 			multiExit=true;
 			map.get(ch).add(state);
 		}else{
+			if(ch.equals(DFAM.EMPTY_STRING)){
+				multiExit=true;
+			}
+			
 			Vector<State> ss=new Vector<State>();
 			ss.add(state);
 			map.put(ch,ss);
@@ -69,8 +73,8 @@ class DFAState extends State{						//to be honest , this inheritance has less me
 	public Vector<State> mapf(String ch){			//at first , i want to use "State mapf(String ch)",but its not override!! NO WAY..
 		if(map.containsKey(ch)){
 			State dfaS= map.get(ch).get(0);
-			dfaS.identifiedStr=identifiedStr+ch;	//set identified string
-			return map.get(ch);
+			dfaS.identifiedStr=identifiedStr+ch;	//set identified string 
+			return map.get(ch);						//***it will modify itself when appears circle
 		}else{
 			return null;
 		}
