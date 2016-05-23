@@ -6,11 +6,6 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.util.*;
 
-import sun.rmi.runtime.Log;
-
-import com.sun.org.apache.xml.internal.security.Init;
-import com.sun.xml.internal.bind.v2.runtime.reflect.opt.Const;
-
 public class DFAM {
 	
 	Map<String, State> DFAStateSet=new HashMap<String,State>();	 //a NFA maybe a DFA , so i use State not DFAState to imp polymorphism 
@@ -332,7 +327,7 @@ public class DFAM {
 				dfaS=DFAStateSet.get(zipState(ss));			
 				
 				for(String ch:alphabet){
-					ss2=closure(Move(ss,ch));				//state transfer
+					ss2=closure(move(ss,ch));				//state transfer
 					if(ss2.isEmpty())	continue;
 					
 					stateCode=zipState(ss2);
@@ -420,7 +415,7 @@ public class DFAM {
 		}		
 	}
 	
-	public HashSet<State> Move(HashSet<State> sset,String ch){
+	public HashSet<State> move(HashSet<State> sset,String ch){
 		Iterator<State> ite=sset.iterator();
 		State s=null;
 		HashSet<State> newSset=new HashSet<State>();
