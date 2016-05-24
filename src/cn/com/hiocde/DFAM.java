@@ -4,6 +4,7 @@ import java.io.BufferedWriter;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.StringReader;
 import java.util.*;
 
 public class DFAM {
@@ -16,10 +17,10 @@ public class DFAM {
 	public static void main(String[] args) { 
 		DFAM dfam=new DFAM();
 		dfam.init(args[0]);								//args[0] --- regular grammar file path
-		String token_file=dfam.run(args[1]);			//args[1] --- source text file path | start lexical analysis
+		String tokens_file=dfam.run(args[1]);			//args[1] --- source text file path | start lexical analysis
 		
 		ItemsCluster phaser=new ItemsCluster();
-		phaser.phasing(args[2],token_file);				//args[2] --- type-2 grammar file path | start phasing
+		phaser.phasing(args[2],tokens_file);				//args[2] --- type-2 grammar file path | start phasing
 	}
 
 	public void init(String gpath){					//according to regular grammar, construct NFA then convert to DFA
@@ -40,7 +41,7 @@ public class DFAM {
 			BufferedReader br = new BufferedReader(new FileReader(gpath));	
 			String line;
 			while((line=br.readLine())!=null){		//generate NFA , the NFA is made up of four sub-NFAs
-				if(line.startsWith("//")){
+				if(line.startsWith("//")||"".equals(line)){
 					continue;
 				}
 				switch(line){
@@ -98,29 +99,28 @@ public class DFAM {
 	public String run(String text_path){					//start lexical analysis , return tokens　path
 		State currentS=DFAStateSet.get("S");
 		State oldS=null;		//the fore state of currentS
-		BufferedReader br=null;
+		StringReader sr=null;
 		BufferedWriter bw=null;
 		String tokens_path=null;
 		
 		try {
-			br = new BufferedReader(new FileReader(text_path));	
-						
+			//br = new BufferedReader(new FileReader(text_path));							
 			int lastIndex;
 			if((lastIndex=text_path.lastIndexOf('/'))!=-1){
-				tokens_path=text_path.substring(0,lastIndex+1);
-			}else if((lastIndex=text_path.lastIndexOf("\\"))!=-1){	//***in code or storage , '\' is shift-meaning char
-				tokens_path=text_path.substring(0,lastIndex+1);		//***so in there,+1 not +2
+				tokens_path=text_path.substring(0,lastIndex+1)+"token_stream.txt";
+			}else if((lastIndex=text_path.lastIndexOf("\\"))!=-1){						//***in code or storage , '\' is shift-meaning char
+				tokens_path=text_path.substring(0,lastIndex+1)+"token_stream.txt";		//***so in there,+1 not +2
 			}else{
-				System.out.println("Source Text Path Is Wrong!");
-				br.close();				
+				System.out.println("Source Text Path Is Wrong!");						
 				return null;
 			}
-			bw =new BufferedWriter(new FileWriter(tokens_path+"token_stream.txt",false));		//non-appending style to write 
-						
-			int ich;
-			char ch;
 			
-			while((ich=br.read())!=-1){					//***(ich=(char)br.read())!=-1 is wrong!!
+			sr=preProcess(text_path);				//***discard annotation
+			bw =new BufferedWriter(new FileWriter(tokens_path,false));//non-appending style to write 			
+			int ich;
+			char ch;					
+			
+			while((ich=sr.read())!=-1){							//***(ich=(char)br.read())!=-1 is wrong!!
 				ch=(char)ich;
 				if(ch==' '||ch=='\n'||ch=='\r'||ch=='\t'){		//***ch=='\b' capture space fail
 					continue;
@@ -131,9 +131,9 @@ public class DFAM {
 														//***you cant use mapf twice!!because of self_circle
 				if(newS!=null){	
 					currentS=newS.get(0);		
-					if(keyWords.contains(currentS.getIdentifiedStr())){			//check key word
+					if(keyWords.contains(currentS.getIdentifiedStr())){		//check key word
 						bw.write("0 "+currentS.getIdentifiedStr()+"\n");
-						currentS=DFAStateSet.get("S");			//reset currentS as startS						
+						currentS=DFAStateSet.get("S");						//reset currentS as startS						
 					}
 					continue;
 				}else{				
@@ -147,14 +147,14 @@ public class DFAM {
 							bw.write(id.charAt(id.length()-1)+" "+oldS.getIdentifiedStr()+"\n");
 						}												
 						
-						currentS=DFAStateSet.get("S");			//reset currentS as startS
+						currentS=DFAStateSet.get("S");						//reset currentS as startS
 						newS=currentS.mapf(ch+"");
 						if(newS==null){
 							System.out.println("Existing invalid word!");
 							System.out.println("Identified String : "+oldS.getIdentifiedStr());
 							System.out.println("Error Character : "+ch);
 							
-							br.close();
+							sr.close();
 							bw.close();
 							return null;
 						}else{
@@ -165,7 +165,7 @@ public class DFAM {
 						System.out.println("Identified String : "+oldS.getIdentifiedStr());
 						System.out.println("Error Character : "+ch);
 
-						br.close();
+						sr.close();
 						bw.close();
 						return null;
 					}					
@@ -185,7 +185,8 @@ public class DFAM {
 					bw.write(id.charAt(id.length()-1)+" "+currentS.getIdentifiedStr()+"\n");
 				}				
 				
-				System.out.println("Lexcial analysis succeed , waiting for grammar analysis");		//lexcial analysis succeed				
+				bw.write("#\n");
+				System.out.println("\nLexcial analysis succeed , waiting for grammar analysis");		//lexcial analysis succeed				
 			}else{
 				System.out.println("Existing unterminated word!");
 				System.out.println("Identified String : "+currentS.getIdentifiedStr());		
@@ -196,7 +197,7 @@ public class DFAM {
 			e.printStackTrace();
 		}finally {
 			try {
-				br.close();
+				sr.close();
 				bw.close();			//***writing file now				
 			} catch (IOException e) {
 				// TODO Auto-generated catch block
@@ -439,6 +440,23 @@ public class DFAM {
 		}
 		
 		return newSset;
+	}
+	
+	public StringReader preProcess(String file_path) throws IOException{					//discard annotation
+		BufferedReader br=new BufferedReader(new FileReader(file_path));
+		StringBuffer strbf=new StringBuffer();
+		String line;
+		
+		while((line=br.readLine())!=null){
+			if(line.startsWith("//")){
+				continue;
+			}else{
+				strbf.append(line);
+			}
+		}
+		
+		return new StringReader(strbf.toString());
+		
 	}
 	
 }

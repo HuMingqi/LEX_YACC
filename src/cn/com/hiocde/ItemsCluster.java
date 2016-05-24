@@ -5,6 +5,8 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.util.*;
 
+import com.sun.org.apache.bcel.internal.generic.GOTO;
+
 public class ItemsCluster {
 	Vector<ItemSet> cluster=new Vector<ItemSet>();
 	Map<Integer,HashMap<String,String>> LRTable=new HashMap<Integer,HashMap<String,String>>();
@@ -33,36 +35,40 @@ public class ItemsCluster {
 				if(line.startsWith("//")){
 					continue;
 				}
-				cur_input=line.substring(0,1);
-				stack_top=stateStack.peek();
+				cur_input=line.substring(0,1);				
 				
-				action=LRTable.get(stack_top).get(cur_input);		//query LR analysis table
-				if(action!=null){
-					switch(action.length()){						//1-move into | 2-return | 3-acc
-					case 1:
-						symbolStack.push(cur_input);
-						stateStack.push(Integer.valueOf(action));
-						break;
-					case 2:
-						String prodc=prodcs.get(action);
-						for(int i=0;i<prodc.length()-1;++i){
-							symbolStack.pop();
-							stateStack.pop();
+				boolean flag=true;				
+				while(flag){											//for case 2
+					stack_top=stateStack.peek();
+					action=LRTable.get(stack_top).get(cur_input);		//query LR analysis table
+					if(action!=null){
+						switch(action.length()){						//1-move into | 2-return | 3-acc
+						case 1:
+							symbolStack.push(cur_input);
+							stateStack.push(Integer.valueOf(action));
+							flag=false;
+							break;
+						case 2:
+							String prodc=prodcs.get(action);
+							for(int i=0;i<prodc.length()-1;++i){
+								symbolStack.pop();
+								stateStack.pop();
+							}
+							symbolStack.push(prodc.substring(0,1));
+							action=LRTable.get(stateStack.peek()).get(prodc.substring(0,1));		//goto
+							stateStack.push(Integer.valueOf(action));														
+							break;
+						case 3:
+							System.out.println("Analysis Result : ACC");
+							br.close();
+							return;
 						}
-						symbolStack.push(prodc.substring(0,1));
-						action=LRTable.get(stateStack.peek()).get(prodc.substring(0,1));		//goto
-						stateStack.push(Integer.valueOf(action));
-						break;
-					case 3:
-						System.out.println("ACC");
+					}else{
+						System.out.println("Analysis Result : ERROR");
 						br.close();
 						return;
 					}
-				}else{
-					System.out.println("ERROR");
-					br.close();
-					return;
-				}				
+				}							
 			}			
 		}catch(IOException ex){
 			ex.printStackTrace();
@@ -77,7 +83,7 @@ public class ItemsCluster {
 			int prodcNumber=0;
 			
 			while((line=br.readLine())!=null){
-				if(line.startsWith("//")){
+				if(line.startsWith("//")||"".equals(line)){			//discard annotation and empty line
 					continue;
 				}
 				
@@ -100,7 +106,7 @@ public class ItemsCluster {
 	}	
 	
 	public void buildCluster(){
-		Item item=new Item("RO",prodcs.get("RO").substring(0,1),prodcs.get("RO").substring(1));
+		Item item=new Item("R0",prodcs.get("R0").substring(0,1),prodcs.get("R0").substring(1));
 		item.addStringToPre("#");
 		
 		int id=0;
@@ -109,6 +115,7 @@ public class ItemsCluster {
 		HashSet<Item> items=itemset.getItemset();
 		
 		itemset.setItemset(closure(items));			//initial itemset
+		itemset.printSelf();
 		cluster.add(itemset);
 		
 		Queue<ItemSet> queue=new LinkedList<ItemSet>();
@@ -120,6 +127,7 @@ public class ItemsCluster {
 			itemset=queue.poll();
 			items=itemset.getItemset();
 			
+			moveBych.clear();//***you know
 			for(Item item1:items){
 				String expect;
 				if((expect=item1.next())!=null){
@@ -137,6 +145,8 @@ public class ItemsCluster {
 						itemset.put(ch,its.getId());
 						--id;
 						existed=true;
+												
+						System.out.println("\nMAP : ("+itemset.getId()+","+its.getId()+","+ch+")");
 						break;
 					}					
 				}
@@ -145,9 +155,12 @@ public class ItemsCluster {
 					itemset.put(ch,itemset1.getId());
 					
 					queue.offer(itemset1);
+					
+					System.out.print("\nMAP : ("+itemset.getId()+","+itemset1.getId()+","+ch+")");
+					itemset1.printSelf();					
 				}
 			}
-		}
+		}			
 	}
 	
 	public boolean fillInTable(){
@@ -158,6 +171,18 @@ public class ItemsCluster {
 				 return false;
 			 }
 		}
+		
+		System.out.println("\nLR1 Analysis Table : ");
+		HashMap<String,String> line;
+		for(Integer sid:LRTable.keySet()){
+			line=LRTable.get(sid);
+			String action;
+			for(String ch:line.keySet()){
+				System.out.println("("+sid+","+ch+","+line.get(ch)+")");
+			}
+			System.out.println();
+		}
+		
 		return true;
 	}
 	
@@ -178,7 +203,7 @@ public class ItemsCluster {
 		return newItemset;
 	}
 	
-	public HashSet<Item> closure(HashSet<Item> itemset ){		//expand itemset and add pre-search-symbol
+	public HashSet<Item> closure(HashSet<Item> itemset ){//expand itemset and add pre-search-symbol
 		HashSet<Item> newItemset=(HashSet<Item>) itemset.clone();
 		Iterator<Item> ite=itemset.iterator();
 		Item item=null;
@@ -194,7 +219,7 @@ public class ItemsCluster {
 		return newItemset;
 	}
 	
-	public void closure_op(Item item,HashSet<Item> newItemset,HashSet<String> visited){			//******so tired!!!
+	public String closure_op(Item item,HashSet<Item> newItemset,HashSet<String> visited){			//******so tired!!!
 		String expect=item.next();		
 		Item item1=null;
 		String firstSet;
@@ -217,24 +242,27 @@ public class ItemsCluster {
 					item1.addStringToPre(firstSet);
 					newItemset.add(item1);
 					
-					if(item1.getType()==3){
-						closure_op(item1, newItemset, visited);	
+					if(item1.getType()==3){				//***maybe a left-recursion , it's difficult here						
+						String temp=closure_op(item1, newItemset, visited);	
+						if(item1.getLeft().equals(item1.next())){		//update first set when left-recursion
+							firstSet+=temp;
+						}
 					}
 				}
 			}
 		}else{											//only need update pre-search-symbol , EG: S->.Sa,# | S->.M
 			for(Item item2:newItemset){
 				if(expect.equals(item2.getLeft())){
-					if(item2.getType()==3){
-						if(item2.addStringToPre(firstSet)){
+					if(item2.getType()==3&&!expect.equals(item2.next())){		//exclude left-recursion , eg:S->.M
+						if(item2.addStringToPre(firstSet)){						//when effective add , update M
 							boolean update=false;
 							for(Item item3:newItemset){
-								if(item3.getType()==3&&item3.getLeft().equals(item2.next())){
+								if(item3.getLeft().equals(item2.next())){
 									update=true;								//M->.N has existed
 								}
 							}
 							if(update){
-								closure_op(item2, newItemset, visited);			//calculate pre-symbol again 
+								closure_op(item2, newItemset, visited);			//calculate pre-symbol again ， dynamic update
 							}							
 						}
 					}else{
@@ -243,32 +271,35 @@ public class ItemsCluster {
 				}
 			}
 		}
+		return firstSet;
 	}
 	
 	public String firstSet(Item item){	
 		String after=item.afterExpect();
 		HashSet<String> pres=item.getPres();
-		String firstSet="";
+		StringBuffer firstSet=new StringBuffer("");
 		
 		if(!pres.isEmpty()){
-			String temp;
+			StringBuffer temp=new StringBuffer("");
 			for(String pre:pres){
-				temp="";
+				//String temp="";
+				//firstSet(after+pre,temp);				//******for String object , dont post ref!!!
+				temp.delete(0,temp.length());			//clear temp
 				firstSet(after+pre,temp);
-				firstSet+=temp;
+				firstSet.append(temp.toString());
 			}
 		}else{		
 			firstSet(after,firstSet);
 		}
 		
-		return firstSet;
+		return firstSet.toString();
 	}
 	
-	public void firstSet(String str,String firstSet){
+	public void firstSet(String str,StringBuffer firstSet){
 		if(str.length()==0){
-			firstSet+="";
+			return;
 		}else if(!non_terminated_s.contains(str.substring(0,1))){
-			firstSet+=str.substring(0,1);
+			firstSet.append(str.substring(0,1));
 		}else{
 			String nts=str.substring(0,1);
 			for(String prodc:prodcs.values()){

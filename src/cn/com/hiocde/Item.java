@@ -85,7 +85,7 @@ public class Item {
 	}
 	
 	public String next(){				//expected next symbol
-		if(type==1&&type==3){
+		if(type==1||type==3){
 			return right.charAt(pos)+"";
 		}else{
 			return null;
@@ -123,6 +123,10 @@ public class Item {
 		}
 		
 		return super.equals(obj);
+	}
+	
+	public void printSelf(){
+		System.out.println("Item : ("+left+"->"+right+","+pos+","+this.preToString()+")");
 	}
 	
 }
