@@ -31,6 +31,8 @@ public class ItemsCluster {
 			Integer stack_top;
 			String action;
 			
+			System.out.println("Printing Analysis Stack : ");
+			
 			while((line=br.readLine())!=null){
 				if(line.startsWith("//")){
 					continue;
@@ -41,6 +43,9 @@ public class ItemsCluster {
 				while(flag){											//for case 2
 					stack_top=stateStack.peek();
 					action=LRTable.get(stack_top).get(cur_input);		//query LR analysis table
+					
+					printStack(stateStack, symbolStack, cur_input, action);//print current analysis stack
+					
 					if(action!=null){
 						switch(action.length()){						//1-move into | 2-return | 3-acc
 						case 1:
@@ -59,12 +64,12 @@ public class ItemsCluster {
 							stateStack.push(Integer.valueOf(action));														
 							break;
 						case 3:
-							System.out.println("Analysis Result : ACC");
+							System.out.println("\nAnalysis Result : ACC");
 							br.close();
 							return;
 						}
 					}else{
-						System.out.println("Analysis Result : ERROR");
+						System.out.println("\nAnalysis Result : ERROR");
 						br.close();
 						return;
 					}
@@ -313,6 +318,19 @@ public class ItemsCluster {
 				}
 			}
 		}
+	}
+	
+	public void printStack(Stack<Integer> states,Stack<String> symbols,String input,String action){		
+		String sts="",smbs="";
+		
+		for(Integer st:states){
+			sts+=st.toString();
+		}
+		for(String smb:symbols){
+			smbs+=smb.toString();
+		}
+		
+		System.out.println("("+sts+","+smbs+","+input+","+action+")");
 	}
 	
 }
