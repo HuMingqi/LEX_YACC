@@ -15,11 +15,14 @@ public class DFAM {
 	
 	public static void main(String[] args) { 
 		DFAM dfam=new DFAM();
-		dfam.init(args[0]);			//args[0] --- regular grammar file path
-		dfam.run(args[1]);			//args[1] --- source text file path
+		dfam.init(args[0]);								//args[0] --- regular grammar file path
+		String token_file=dfam.run(args[1]);			//args[1] --- source text file path | start lexical analysis
+		
+		ItemsCluster phaser=new ItemsCluster();
+		phaser.phasing(args[2],token_file);				//args[2] --- type-2 grammar file path | start phasing
 	}
 
-	public void init(String gpath){			//according to regular grammar, construct NFA then convert to DFA
+	public void init(String gpath){					//according to regular grammar, construct NFA then convert to DFA
 		Map<String, State> NFAStateSet=new HashMap<String,State>();
 		State startS=new State("S");
 		//State endS0=new State("Z0");				//Z represent end state
@@ -92,16 +95,16 @@ public class DFAM {
 		NFA2DFA(NFAStateSet);
 	}
 	
-	public void run(String text_path){
+	public String run(String text_path){					//start lexical analysis , return tokens　path
 		State currentS=DFAStateSet.get("S");
 		State oldS=null;		//the fore state of currentS
 		BufferedReader br=null;
 		BufferedWriter bw=null;
+		String tokens_path=null;
 		
 		try {
 			br = new BufferedReader(new FileReader(text_path));	
-			
-			String tokens_path=null;
+						
 			int lastIndex;
 			if((lastIndex=text_path.lastIndexOf('/'))!=-1){
 				tokens_path=text_path.substring(0,lastIndex+1);
@@ -109,7 +112,8 @@ public class DFAM {
 				tokens_path=text_path.substring(0,lastIndex+1);		//***so in there,+1 not +2
 			}else{
 				System.out.println("Source Text Path Is Wrong!");
-				return;
+				br.close();				
+				return null;
 			}
 			bw =new BufferedWriter(new FileWriter(tokens_path+"token_stream.txt",false));		//non-appending style to write 
 						
@@ -152,7 +156,7 @@ public class DFAM {
 							
 							br.close();
 							bw.close();
-							return;
+							return null;
 						}else{
 							currentS=newS.get(0);
 						}						
@@ -163,7 +167,7 @@ public class DFAM {
 
 						br.close();
 						bw.close();
-						return;
+						return null;
 					}					
 				}
 			}
@@ -181,10 +185,11 @@ public class DFAM {
 					bw.write(id.charAt(id.length()-1)+" "+currentS.getIdentifiedStr()+"\n");
 				}				
 				
-				System.out.println("Lexcial analysis succeed , waiting for grammar analysis");		//lexcial analysis succeed
+				System.out.println("Lexcial analysis succeed , waiting for grammar analysis");		//lexcial analysis succeed				
 			}else{
 				System.out.println("Existing unterminated word!");
-				System.out.println("Identified String : "+currentS.getIdentifiedStr());					
+				System.out.println("Identified String : "+currentS.getIdentifiedStr());		
+				return null;
 			}
 		}catch(IOException e) {
 			// TODO Auto-generated catch block
@@ -192,12 +197,61 @@ public class DFAM {
 		}finally {
 			try {
 				br.close();
-				bw.close();			//***writing file now
+				bw.close();			//***writing file now				
 			} catch (IOException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}			
+		}
+		return tokens_path;		
+	}
+	
+	public void NFA2DFA(Map<String, State> NFA){
+		boolean isDFA=true;
+		for(State s:NFA.values()){
+			if(s.isMultiExit()){
+				isDFA=false;				//it's not DFA
+			}
 		}		
+		
+		if(isDFA==true){
+			DFAStateSet=NFA;
+		}else{
+			Queue<HashSet<State>> queue=new LinkedList<HashSet<State>>();
+			HashSet<State> startS=new HashSet<State>();
+			startS.add(NFA.get("S"));
+			startS=closure(startS);
+			queue.offer(startS);
+			
+			String stateCode=zipState(startS);
+			State dfaS=new DFAState(stateCode);			//statecode as id , it's convenient to index			
+			DFAStateSet.put(stateCode, dfaS);			
+			
+			HashSet<State> ss=null;			
+			HashSet<State> ss2=null;
+			
+			while(!queue.isEmpty()){				
+				ss=queue.poll();				
+				dfaS=DFAStateSet.get(zipState(ss));			
+				
+				for(String ch:alphabet){
+					ss2=closure(move(ss,ch));				//state transfer
+					if(ss2.isEmpty())	continue;
+					
+					stateCode=zipState(ss2);
+					if(!DFAStateSet.containsKey(stateCode)){							
+						queue.offer(ss2);
+						DFAStateSet.put(stateCode, new DFAState(stateCode));		//add new dfaState
+					}
+					dfaS.put(ch,DFAStateSet.get(stateCode));						//build map relation:ds-->dfaS
+										
+					if("@".equals(ch)){
+						ch="\\@";
+					}
+					System.out.println("DFA MAP : "+"("+dfaS.getId()+","+stateCode+","+ch+")");
+				}				
+			}
+		}
 	}
 	
 	public void productionToMap(Map<String,State> NFAStateSet,String prodc,State endS){		//support shift meaning and meta char
@@ -298,53 +352,7 @@ public class DFAM {
 		}
 	}
 	
-	public void NFA2DFA(Map<String, State> NFA){
-		boolean isDFA=true;
-		for(State s:NFA.values()){
-			if(s.isMultiExit()){
-				isDFA=false;				//it's not DFA
-			}
-		}		
-		
-		if(isDFA==true){
-			DFAStateSet=NFA;
-		}else{
-			Queue<HashSet<State>> queue=new LinkedList<HashSet<State>>();
-			HashSet<State> startS=new HashSet<State>();
-			startS.add(NFA.get("S"));
-			startS=closure(startS);
-			queue.offer(startS);
-			
-			String stateCode=zipState(startS);
-			State dfaS=new DFAState(stateCode);			//statecode as id , it's convenient to index			
-			DFAStateSet.put(stateCode, dfaS);			
-			
-			HashSet<State> ss=null;			
-			HashSet<State> ss2=null;
-			
-			while(!queue.isEmpty()){				
-				ss=queue.poll();				
-				dfaS=DFAStateSet.get(zipState(ss));			
-				
-				for(String ch:alphabet){
-					ss2=closure(move(ss,ch));				//state transfer
-					if(ss2.isEmpty())	continue;
-					
-					stateCode=zipState(ss2);
-					if(!DFAStateSet.containsKey(stateCode)){							
-						queue.offer(ss2);
-						DFAStateSet.put(stateCode, new DFAState(stateCode));		//add new dfaState
-					}
-					dfaS.put(ch,DFAStateSet.get(stateCode));						//build map relation:ds-->dfaS
-										
-					if("@".equals(ch)){
-						ch="\\@";
-					}
-					System.out.println("DFA MAP : "+"("+dfaS.getId()+","+stateCode+","+ch+")");
-				}				
-			}
-		}
-	}
+	
 	
 	public String zipState(HashSet<State> sset){			//hash function:stateSet --> stateCode
 		String stateCode=null;

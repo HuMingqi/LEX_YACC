@@ -3,7 +3,7 @@ package cn.com.hiocde;
 import java.util.*;
 
 public class Item {
-	private String prodcId;	//such as R0,R1,...
+	private String prodcId;		//such as R0,R1,...
 	private String left;
 	private String right;		//if prodc is empty,set right as ""
 	private int pos;			//point position
@@ -34,6 +34,10 @@ public class Item {
 		return left;
 	}
 	
+	public int getPos(){
+		return pos;
+	}
+	
 	public int getType(){
 		return type; 
 	}
@@ -58,6 +62,10 @@ public class Item {
 		return preSearch;
 	}
 	
+	public void setPres(HashSet<String> pres){
+		preSearch=pres;
+	}
+	
 	public boolean addStringToPre(String symbolStr){			//effective add return true
 		boolean effective=false;
 		for(int i=0;i<symbolStr.length();++i){
@@ -77,7 +85,7 @@ public class Item {
 	}
 	
 	public String next(){				//expected next symbol
-		if(type!=4&&type!=2){
+		if(type==1&&type==3){
 			return right.charAt(pos)+"";
 		}else{
 			return null;
@@ -99,8 +107,22 @@ public class Item {
 	
 	public Item clone(){
 		Item item_copy=new Item(prodcId, left, right,pos);
-		HashSet<String> pres=item_copy.getPres();
-		pres=(HashSet<String>) preSearch.clone();		
+		item_copy.setPres((HashSet<String>) preSearch.clone());		
 		return item_copy;
 	}		
+	
+	@Override
+	public boolean equals(Object obj){
+		if(obj instanceof Item){
+			Item item=(Item)obj;
+			if(item.getProdcId()==prodcId&&item.getPos()==pos&&item.getPres().hashCode()==preSearch.hashCode()){
+				return true;						//***maybe hashcode repeat , so not always correct
+			}else{
+				return false;
+			}
+		}
+		
+		return super.equals(obj);
+	}
+	
 }

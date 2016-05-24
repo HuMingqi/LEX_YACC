@@ -7,8 +7,67 @@ import java.util.*;
 
 public class ItemsCluster {
 	Vector<ItemSet> cluster=new Vector<ItemSet>();
+	Map<Integer,HashMap<String,String>> LRTable=new HashMap<Integer,HashMap<String,String>>();
 	Map<String , String> prodcs=new HashMap<String,String>();		//such as R0 : ES , R1 : SaB
-	static HashSet<String> non_terminated_s=new HashSet<String>(); 		//register non-terminated-symbol
+	static HashSet<String> non_terminated_s=new HashSet<String>(); 	//register non-terminated-symbol
+	
+	public void phasing(String yacc_gpath,String tokens_path){		//start phasing token stream , output acc or no for source file
+		readProdcs(yacc_gpath);
+		buildCluster();
+		if(!fillInTable())	return;									//if exist r-r clash or m-r clash , stop phasing
+		
+		Stack<Integer> stateStack=new Stack<Integer>();
+		Stack<String> symbolStack=new Stack<String>();
+		stateStack.push(0);symbolStack.push("#");					//init stack
+		
+		BufferedReader br=null;		
+		
+		try{
+			br=new BufferedReader(new FileReader(tokens_path));
+			String line=null;
+			String cur_input=null;
+			Integer stack_top;
+			String action;
+			
+			while((line=br.readLine())!=null){
+				if(line.startsWith("//")){
+					continue;
+				}
+				cur_input=line.substring(0,1);
+				stack_top=stateStack.peek();
+				
+				action=LRTable.get(stack_top).get(cur_input);		//query LR analysis table
+				if(action!=null){
+					switch(action.length()){						//1-move into | 2-return | 3-acc
+					case 1:
+						symbolStack.push(cur_input);
+						stateStack.push(Integer.valueOf(action));
+						break;
+					case 2:
+						String prodc=prodcs.get(action);
+						for(int i=0;i<prodc.length()-1;++i){
+							symbolStack.pop();
+							stateStack.pop();
+						}
+						symbolStack.push(prodc.substring(0,1));
+						action=LRTable.get(stateStack.peek()).get(prodc.substring(0,1));		//goto
+						stateStack.push(Integer.valueOf(action));
+						break;
+					case 3:
+						System.out.println("ACC");
+						br.close();
+						return;
+					}
+				}else{
+					System.out.println("ERROR");
+					br.close();
+					return;
+				}				
+			}			
+		}catch(IOException ex){
+			ex.printStackTrace();
+		}		
+	}
 	
 	public void readProdcs(String yacc_gpath){						//read 2-type grammar
 		BufferedReader br=null;
@@ -17,7 +76,7 @@ public class ItemsCluster {
 			String line;
 			int prodcNumber=0;
 			
-			while((line=br.readLine())!=null){		//generate NFA , the NFA is made up of four sub-NFAs
+			while((line=br.readLine())!=null){
 				if(line.startsWith("//")){
 					continue;
 				}
@@ -38,19 +97,68 @@ public class ItemsCluster {
 				e.printStackTrace();
 			}
 		}
-	}
+	}	
 	
 	public void buildCluster(){
 		Item item=new Item("RO",prodcs.get("RO").substring(0,1),prodcs.get("RO").substring(1));
 		item.addStringToPre("#");
 		
-		ItemSet itemset=new ItemSet(0);
+		int id=0;
+		ItemSet itemset=new ItemSet(id++);
 		itemset.addItem(item);
 		HashSet<Item> items=itemset.getItemset();
 		
-		items=closure(items);
+		itemset.setItemset(closure(items));			//initial itemset
 		cluster.add(itemset);
 		
+		Queue<ItemSet> queue=new LinkedList<ItemSet>();
+		queue.offer(itemset);
+		
+		HashSet<String> moveBych=new HashSet<String>();
+		
+		while(!queue.isEmpty()){
+			itemset=queue.poll();
+			items=itemset.getItemset();
+			
+			for(Item item1:items){
+				String expect;
+				if((expect=item1.next())!=null){
+					moveBych.add(expect);
+				}
+			}
+			
+			for(String ch:moveBych){
+				ItemSet itemset1=new ItemSet(id++);
+				itemset1.setItemset(closure(move(items,ch)));
+				boolean existed=false;
+				
+				for(ItemSet its:cluster){
+					if(its.equals(itemset1)){					//item set has existed
+						itemset.put(ch,its.getId());
+						--id;
+						existed=true;
+						break;
+					}					
+				}
+				if(!existed){
+					cluster.add(itemset1);
+					itemset.put(ch,itemset1.getId());
+					
+					queue.offer(itemset1);
+				}
+			}
+		}
+	}
+	
+	public boolean fillInTable(){
+		boolean succeed=true;
+		for(ItemSet items:cluster){
+			 succeed=items.addLineTo(LRTable);
+			 if(!succeed){
+				 return false;
+			 }
+		}
+		return true;
 	}
 	
 	public HashSet<Item> move(HashSet<Item> itemset,String ch){
