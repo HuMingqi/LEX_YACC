@@ -16,7 +16,7 @@ public class ItemsCluster {
 	public void phasing(String yacc_gpath,String tokens_path){		//start phasing token stream , output acc or no for source file
 		readProdcs(yacc_gpath);
 		buildCluster();
-		if(!fillInTable())	return;									//if exist r-r clash or m-r clash , stop phasing
+		if(!fillInTable())	return;									//if exist r-r clash or s-r clash , stop phasing
 		
 		Stack<Integer> stateStack=new Stack<Integer>();
 		Stack<String> symbolStack=new Stack<String>();
@@ -47,26 +47,25 @@ public class ItemsCluster {
 					printStack(stateStack, symbolStack, cur_input, action);//print current analysis stack
 					
 					if(action!=null){
-						switch(action.length()){						//1-move into | 2-return | 3-acc
-						case 1:
-							symbolStack.push(cur_input);
-							stateStack.push(Integer.valueOf(action));
-							flag=false;
-							break;
-						case 2:
-							String prodc=prodcs.get(action);
-							for(int i=0;i<prodc.length()-1;++i){
-								symbolStack.pop();
-								stateStack.pop();
-							}
-							symbolStack.push(prodc.substring(0,1));
-							action=LRTable.get(stateStack.peek()).get(prodc.substring(0,1));		//goto
-							stateStack.push(Integer.valueOf(action));														
-							break;
-						case 3:
+						if(action.equals("acc")){
 							System.out.println("\nAnalysis Result : ACC");
 							br.close();
 							return;
+						}else if(action.charAt(0)=='R'){					//reduce
+							String prodc=prodcs.get(action);
+							if(prodc.charAt(1)!='@'){						//not empty-prodc
+								for(int i=0;i<prodc.length()-1;++i){
+									symbolStack.pop();
+									stateStack.pop();
+								}
+							}
+							symbolStack.push(prodc.substring(0,1));
+							action=LRTable.get(stateStack.peek()).get(prodc.substring(0,1));//goto
+							stateStack.push(Integer.valueOf(action));																					
+						}else{												//shift
+							symbolStack.push(cur_input);
+							stateStack.push(Integer.valueOf(action));
+							flag=false;							
 						}
 					}else{
 						System.out.println("\nAnalysis Result : ERROR");
@@ -168,7 +167,7 @@ public class ItemsCluster {
 		}			
 	}
 	
-	public boolean fillInTable(){
+	public boolean fillInTable(){			//delegate ItemSet
 		boolean succeed=true;
 		for(ItemSet items:cluster){
 			 succeed=items.addLineTo(LRTable);
@@ -324,10 +323,10 @@ public class ItemsCluster {
 		String sts="",smbs="";
 		
 		for(Integer st:states){
-			sts+=st.toString();
+			sts+=st.toString()+" ";
 		}
 		for(String smb:symbols){
-			smbs+=smb.toString();
+			smbs+=smb.toString()+" ";
 		}
 		
 		System.out.println("("+sts+","+smbs+","+input+","+action+")");

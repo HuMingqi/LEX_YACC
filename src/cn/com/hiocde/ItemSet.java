@@ -45,15 +45,15 @@ public class ItemSet {
 		for(Item item:items){
 			if(item.getType()==4){
 				if(line.put("#","acc")!=null){					
-					System.out.println("\nERROR : NOT LR1 GRAMMAR ! PARSING STOPPED");
+					System.out.println("\nCONFLICT : NOT LR1 GRAMMAR ! PARSING STOPPED");
 					System.out.println("ItemSet ID : "+id);
 					return false;
 				}
 			}else if(item.getType()==2){
-				Set<String> pre=item.getPres();
-				for(String symbol:pre){
+				Set<String> pres=item.getPres();
+				for(String symbol:pres){
 					if(line.put(symbol,item.getProdcId())!=null){
-						System.out.println("\nERROR : NOT LR1 GRAMMAR ! PARSING STOPPED");
+						System.out.println("\nCONFLICT : NOT LR1 GRAMMAR ! PARSING STOPPED");
 						System.out.println("ItemSet ID : "+id);
 						return false;
 					}

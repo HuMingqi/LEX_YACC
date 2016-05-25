@@ -1,0 +1,45 @@
+//2-type grammar to support phaser analysis
+
+E->S
+//#expression eg:1.a*b; 2.a=b*c; 3.int a=b*c;
+S->SU
+S->@
+U->RT2
+R->0
+R->@
+T->T1F
+T->F
+F->3
+F->13
+//F->31
+F->4
+//#expression
+
+//#definition eg:int a,b,c;
+// S->0N
+// N->N32
+// N->32
+//#definition
+
+//#combination
+// S->SX
+// S->SY
+// S->X
+// S->Y
+
+// // X->0N
+// // N->NY
+// // N->Y
+
+// X->0N
+// N->N32
+// N->32
+
+// Y->RT2
+// R->0
+// R->@
+// T->T1F
+// T->F
+// F->3
+// F->4
+//#combination

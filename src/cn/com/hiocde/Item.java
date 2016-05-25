@@ -8,7 +8,7 @@ public class Item {
 	private String right;		//if prodc is empty,set right as ""
 	private int pos;			//point position
 	private HashSet<String> preSearch=new HashSet<String>();
-	private int type;			//1-put_into 2-return 3-ready_return 4-acc	
+	private int type;			//1-shfit 2-reduce 3-ready_reduce 4-acc	
 	
 	public Item(String prodcId,String left,String right){
 		this.prodcId=prodcId;
@@ -44,10 +44,10 @@ public class Item {
 	
 	public void setTypebyPos(){
 		if(pos==right.length()){
-			if(right.charAt(pos-1)=='S'){
-				type=4;
-			}else{
+			if(pos==0||!"ES".equals(left+right)){		//empty item
 				type=2;
+			}else{
+				type=4;
 			}
 		}else{
 			if(ItemsCluster.non_terminated_s.contains(right.charAt(pos)+"")){

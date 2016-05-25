@@ -1,0 +1,14 @@
+int a;
+int b0=19999;
+int b1=++b0;
+int b2=29*92;
+int c=b0@b1%9;
+a=b0 * b1 + b1/b2 - ++c;
+
+boolean bool0=T;
+boolean bool1=F&T;
+boolean bool2=T|F;
+boolean bool3=!bool2;
+bool3=bool0 & bool1 | bool1 & bool2 | ! bool0;
+
+--a+!bool3;

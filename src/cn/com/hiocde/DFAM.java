@@ -19,8 +19,10 @@ public class DFAM {
 		dfam.init(args[0]);								//args[0] --- regular grammar file path
 		String tokens_file=dfam.run(args[1]);			//args[1] --- source text file path | start lexical analysis
 		
-		ItemsCluster phaser=new ItemsCluster();
-		phaser.phasing(args[2],tokens_file);				//args[2] --- type-2 grammar file path | start phasing
+		if(dfam.gogo()){
+			ItemsCluster phaser=new ItemsCluster();
+			phaser.phasing(args[2],tokens_file);		//args[2] --- type-2 grammar file path | start phasing
+		}		
 	}
 
 	public void init(String gpath){					//according to regular grammar, construct NFA then convert to DFA
@@ -216,7 +218,7 @@ public class DFAM {
 		}		
 		
 		if(isDFA==true){
-			DFAStateSet=NFA;
+			DFAStateSet=NFA;				//dont need transfer
 		}else{
 			Queue<HashSet<State>> queue=new LinkedList<HashSet<State>>();
 			HashSet<State> startS=new HashSet<State>();
@@ -400,7 +402,7 @@ public class DFAM {
 		return stateCode;
 	}
 	
-	public HashSet<State> closure(HashSet<State> sset){
+	public HashSet<State> closure(HashSet<State> sset){	//clear empty edge
 		Iterator<State> ite=sset.iterator();
 		State s=null;
 		HashSet<State> newSset=(HashSet<State>) sset.clone();
@@ -457,6 +459,19 @@ public class DFAM {
 		
 		return new StringReader(strbf.toString());
 		
+	}
+	
+	public boolean gogo(){
+		System.out.println("Continue(Y/N)?");
+		char go='Y';
+		try {
+			go=(char)System.in.read();			
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
+		return go=='Y'||go=='y';
 	}
 	
 }
