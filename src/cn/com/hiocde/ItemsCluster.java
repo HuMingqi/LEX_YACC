@@ -7,12 +7,23 @@ import java.util.*;
 
 import com.sun.org.apache.bcel.internal.generic.GOTO;
 
+/**
+ * The cluster of itemsets , also include LR table and control center of phaser.
+ * @author Hmqi
+ * @see ItemSet
+ * @see Item
+ */
 public class ItemsCluster {
 	Vector<ItemSet> cluster=new Vector<ItemSet>();
 	Map<Integer,HashMap<String,String>> LRTable=new HashMap<Integer,HashMap<String,String>>();
 	Map<String , String> prodcs=new HashMap<String,String>();		//such as R0 : ES , R1 : SaB
 	static HashSet<String> non_terminated_s=new HashSet<String>(); 	//register non-terminated-symbol
 	
+	/**
+	 * The control center of phaser , in charge of ready works and looking up table to execute action.
+	 * @param yacc_gpath 2-type grammar file path
+	 * @param tokens_path Tokens file path 
+	 */
 	public void phasing(String yacc_gpath,String tokens_path){		//start phasing token stream , output acc or no for source file
 		readProdcs(yacc_gpath);
 		buildCluster();
@@ -79,6 +90,9 @@ public class ItemsCluster {
 		}		
 	}
 	
+	/**
+	 * Read and save productions from grammar file.
+	 */
 	public void readProdcs(String yacc_gpath){						//read 2-type grammar
 		BufferedReader br=null;
 		try {
@@ -109,6 +123,9 @@ public class ItemsCluster {
 		}
 	}	
 	
+	/**
+	 * Buile cluster according to productions , mainly using three operations, closure_op , move_op and add_searching_symbol.
+	 */
 	public void buildCluster(){
 		Item item=new Item("R0",prodcs.get("R0").substring(0,1),prodcs.get("R0").substring(1));
 		item.addStringToPre("#");
@@ -167,6 +184,10 @@ public class ItemsCluster {
 		}			
 	}
 	
+	/**
+	 * Traverse every itemset of cluster and delegate task to itemset object to fill in the whole table.
+	 * @return True if fill in the whole table successfully
+	 */
 	public boolean fillInTable(){			//delegate ItemSet
 		boolean succeed=true;
 		for(ItemSet items:cluster){
@@ -190,6 +211,12 @@ public class ItemsCluster {
 		return true;
 	}
 	
+	/**
+	 * Read <tt>ch</tt> from current itemset transfer a new itemset. 
+	 * @param itemset
+	 * @param ch
+	 * @return return new core of itemset.
+	 */
 	public HashSet<Item> move(HashSet<Item> itemset,String ch){
 		HashSet<Item> newItemset=new HashSet<Item>();
 		Item item1;
@@ -207,6 +234,11 @@ public class ItemsCluster {
 		return newItemset;
 	}
 	
+	/**
+	 * Complete closure_op and add_searching_symbol
+	 * @param itemset
+	 * @return return a closed and all searching_symbols included itemset.
+	 */
 	public HashSet<Item> closure(HashSet<Item> itemset ){//expand itemset and add pre-search-symbol
 		HashSet<Item> newItemset=(HashSet<Item>) itemset.clone();
 		Iterator<Item> ite=itemset.iterator();
@@ -223,6 +255,13 @@ public class ItemsCluster {
 		return newItemset;
 	}
 	
+	/**
+	 * Start with a item of core, deduce all direct and indirect items then append to <tt>newItemset</tt> by deep first search.   
+	 * @param item
+	 * @param newItemset
+	 * @param visited register symbol which has been expanded 
+	 * @return return searching_symbol of the expected symbol in param <tt>item</tt>
+	 */
 	public String closure_op(Item item,HashSet<Item> newItemset,HashSet<String> visited){			//******so tired!!!
 		String expect=item.next();		
 		Item item1=null;
@@ -248,7 +287,7 @@ public class ItemsCluster {
 					
 					if(item1.getType()==3){				//***maybe a left-recursion , it's difficult here						
 						String temp=closure_op(item1, newItemset, visited);	
-						if(item1.getLeft().equals(item1.next())){		//update first set when left-recursion
+						if(item1.getLeft().equals(item1.next())){		//update first set when left-recursion or others
 							firstSet+=temp;
 						}
 					}
@@ -266,7 +305,7 @@ public class ItemsCluster {
 								}
 							}
 							if(update){
-								closure_op(item2, newItemset, visited);			//calculate pre-symbol again ， dynamic update
+								closure_op(item2, newItemset, visited);			//calculate pre-symbol again , dynamic update
 							}							
 						}
 					}else{
@@ -278,6 +317,11 @@ public class ItemsCluster {
 		return firstSet;
 	}
 	
+	/**
+	 * return first set of a item, that means getting searching_symbols of the expected symbol in param <tt>item</tt>.
+	 * @param item
+	 * @return
+	 */
 	public String firstSet(Item item){	
 		String after=item.afterExpect();
 		HashSet<String> pres=item.getPres();
@@ -299,6 +343,11 @@ public class ItemsCluster {
 		return firstSet.toString();
 	}
 	
+	/**
+	 * return the first set of Param <tt>str</tt>
+	 * @param str Param <tt>str</tt> = itemObj.afterExpect()+searching_symbol
+	 * @param firstSet <tt>str</tt>'s first set
+	 */
 	public void firstSet(String str,StringBuffer firstSet){
 		if(str.length()==0){
 			return;

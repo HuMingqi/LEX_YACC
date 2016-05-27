@@ -2,6 +2,11 @@ package cn.com.hiocde;
 
 import java.util.*;
 
+/**
+ * <tt>State</tt> is abstract of NFA State , including state id and map relations.  
+ * @author Hmqi
+ * @see DFAState
+ */
 class State {								//NFA State , maybe DFA
 	
 	protected String id;
@@ -26,6 +31,10 @@ class State {								//NFA State , maybe DFA
 	}
 	*/
 	
+	/**
+	 *Whether do state exist multiple exit or empty edge or not.
+	 * @return True if Multiple exit or empty edge
+	 */
 	public boolean isMultiExit(){
 		return multiExit;
 	}
@@ -34,6 +43,11 @@ class State {								//NFA State , maybe DFA
 		return identifiedStr;
 	}
 
+	/**
+	 * Add a map into the state
+	 * @param ch readed symbol
+	 * @param state object state
+	 */
 	public void put(String ch,State state){
 		if(map.containsKey(ch)){
 			multiExit=true;
@@ -49,6 +63,11 @@ class State {								//NFA State , maybe DFA
 		}			
 	}
 	
+	/**
+	 * Read ch return object states.
+	 * @param ch
+	 * @return return states.
+	 */
 	public Vector<State> mapf(String ch){		//the method exports map , not using getMap style . it's stupid , users can modify map casually
 		if(map.containsKey(ch)){
 			for(State s:map.get(ch)){
@@ -62,6 +81,11 @@ class State {								//NFA State , maybe DFA
 	
 }
 
+/**
+ * <tt>DFAState</tt> inherits <tt>State</tt> , represents a DFA state.
+ * @author Hmqi
+ * @see State
+ */
 class DFAState extends State{						//to be honest , this inheritance has less meaning
 													//because mapf has no natural difference when used.u can only use State class to imple DFA_STATE
 	public DFAState(String id) {
@@ -69,7 +93,12 @@ class DFAState extends State{						//to be honest , this inheritance has less me
 		// TODO Auto-generated constructor stub
 	}	
 	
-	@Override
+	@Override	
+	/**
+	 * Override mapf of father-class.
+	 * @param ch
+	 * @return return state.
+	 */	
 	public Vector<State> mapf(String ch){			//at first , i want to use "State mapf(String ch)",but its not override!! NO WAY..
 		if(map.containsKey(ch)){
 			State dfaS= map.get(ch).get(0);

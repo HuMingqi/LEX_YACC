@@ -2,6 +2,11 @@ package cn.com.hiocde;
 
 import java.util.*;
 
+/**
+ * <tt>Item</tt> includes three keys : production , dot position , searching symbols
+ * @author Hmqi
+ *
+ */
 public class Item {
 	private String prodcId;		//such as R0,R1,...
 	private String left;
@@ -42,6 +47,9 @@ public class Item {
 		return type; 
 	}
 	
+	/**
+	 * Dot pos can completely determine the type of item , forbid setting type directly. 
+	 */
 	public void setTypebyPos(){
 		if(pos==right.length()){
 			if(pos==0||!"ES".equals(left+right)){		//empty item
@@ -84,6 +92,10 @@ public class Item {
 		return pres;
 	}
 	
+	/**
+	 * 
+	 * @return return expected symbol after dot
+	 */
 	public String next(){				//expected next symbol
 		if(type==1||type==3){
 			return right.charAt(pos)+"";
@@ -92,6 +104,10 @@ public class Item {
 		}		
 	}
 	
+	/**
+	 * 
+	 * @return return the string after expected symbol , eg: (S,.Aab) , return "ab".
+	 */
 	public String afterExpect(){		//eg: S->.Aab , return ab
 		if(type==3){
 			return right.substring(pos+1);

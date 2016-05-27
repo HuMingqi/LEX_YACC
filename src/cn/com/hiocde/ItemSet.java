@@ -2,6 +2,11 @@ package cn.com.hiocde;
 
 import java.util.*;
 
+/**
+ * Include the set of items and map relations.
+ * @author Hmqi
+ * @see Item
+ */
 public class ItemSet {
 	private Integer id;
 	private HashSet<Item> items=new HashSet<Item>();					//***in fact , we should override hashCode and equals methods in Item class
@@ -35,6 +40,11 @@ public class ItemSet {
 		map.put(ch,id);
 	}
 	
+	/**
+	 * Add one line into LRTable according to self map and reduce/acc item.
+	 * @param lrTable
+	 * @return True if add line successfully , meaning no s-r or r-r conflict.
+	 */
 	public boolean addLineTo(Map<Integer,HashMap<String,String>> lrTable ){
 		HashMap<String,String> line=new HashMap<String,String>();
 		

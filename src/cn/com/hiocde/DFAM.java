@@ -7,6 +7,12 @@ import java.io.IOException;
 import java.io.StringReader;
 import java.util.*;
 
+/**
+ * <code>DFAM</code> is a definite finite automata which is used for identifying token by 3-type grammar definition.
+ * @author Hmqi
+ * @see State
+ * @see ItemsCluster
+ */
 public class DFAM {
 	
 	Map<String, State> DFAStateSet=new HashMap<String,State>();	 //a NFA maybe a DFA , so i use State not DFAState to imp polymorphism 
@@ -14,17 +20,30 @@ public class DFAM {
 	Set<String> alphabet=new HashSet<String>();
 	final static String EMPTY_STRING=" ";
 	
-	public static void main(String[] args) { 
+	/**
+	 * <tt>main</tt> is the entry of the whole program.it needs three params from console.
+	 * @param args args[0] --- regular grammar file path<br>	args[1] --- source text file path | start lexical analysis<br>	args[2] --- type-2 grammar file path | start phasing
+	 */
+	public static void main(String[] args) {
+		if(args.length!=3){
+			System.out.println("Please input three path parameters followed JAR ! first is lexical file , second is source text resolved , third is grammar file.");
+			return;
+		}
+		
 		DFAM dfam=new DFAM();
 		dfam.init(args[0]);								//args[0] --- regular grammar file path
 		String tokens_file=dfam.run(args[1]);			//args[1] --- source text file path | start lexical analysis
 		
-		if(dfam.gogo()){
+		if(tokens_file!=null&&dfam.gogo()){
 			ItemsCluster phaser=new ItemsCluster();
 			phaser.phasing(args[2],tokens_file);		//args[2] --- type-2 grammar file path | start phasing
 		}		
 	}
 
+	/**
+	 * <tt>init</tt> is a initial function used for constructing NFA according to regular grammar then converting to DFA 
+	 * @param gpath lexical file path , must be regular grammar.
+	 */
 	public void init(String gpath){					//according to regular grammar, construct NFA then convert to DFA
 		Map<String, State> NFAStateSet=new HashMap<String,State>();
 		State startS=new State("S");
@@ -98,7 +117,12 @@ public class DFAM {
 		NFA2DFA(NFAStateSet);
 	}
 	
-	public String run(String text_path){					//start lexical analysis , return tokens　path
+	/**
+	 * Running my DFAM , it turns source text into token stream.
+	 * @param text_path source text file path.
+	 * @return tokens file path with the same directory of source text.
+	 */
+	public String run(String text_path){					//start lexical analysis , return tokens path
 		State currentS=DFAStateSet.get("S");
 		State oldS=null;		//the fore state of currentS
 		StringReader sr=null;
@@ -113,7 +137,7 @@ public class DFAM {
 			}else if((lastIndex=text_path.lastIndexOf("\\"))!=-1){						//***in code or storage , '\' is shift-meaning char
 				tokens_path=text_path.substring(0,lastIndex+1)+"token_stream.txt";		//***so in there,+1 not +2
 			}else{
-				System.out.println("Source Text Path Is Wrong!");						
+				System.out.println("Source text path is wrong ! please input absolute path.");						
 				return null;
 			}
 			
@@ -209,6 +233,10 @@ public class DFAM {
 		return tokens_path;		
 	}
 	
+	/**
+	 * Determinate NFA and generate a DFA using subset method.
+	 * @param NFA ready to be converted
+	 */
 	public void NFA2DFA(Map<String, State> NFA){
 		boolean isDFA=true;
 		for(State s:NFA.values()){
@@ -257,6 +285,12 @@ public class DFAM {
 		}
 	}
 	
+	/**
+	 * Production from regular grammar to map of NFA , supporting shift meaning and meta symbol
+	 * @param NFAStateSet
+	 * @param prodc
+	 * @param endS point the end state of current prodction.
+	 */
 	public void productionToMap(Map<String,State> NFAStateSet,String prodc,State endS){		//support shift meaning and meta char
 		char ch=prodc.charAt(0);
 		char ch3=prodc.charAt(3);
@@ -355,8 +389,11 @@ public class DFAM {
 		}
 	}
 	
-	
-	
+	/**
+	 * Generate hashcode of state set for convenience of comparing. 	
+	 * @param sset
+	 * @return hashcode string
+	 */
 	public String zipState(HashSet<State> sset){			//hash function:stateSet --> stateCode
 		String stateCode=null;
 		String id=null;	
@@ -402,6 +439,11 @@ public class DFAM {
 		return stateCode;
 	}
 	
+	/**
+	 * Make closure operation to core set . <tt>NFA2DFA</tt> need it.
+	 * @param sset
+	 * @return return a new closed set.
+	 */
 	public HashSet<State> closure(HashSet<State> sset){	//clear empty edge
 		Iterator<State> ite=sset.iterator();
 		State s=null;
@@ -426,6 +468,12 @@ public class DFAM {
 		}		
 	}
 	
+	/**
+	 * Make Move operation to closed set for get new core set. <tt>NFA2DFA</tt> need it.
+	 * @param sset
+	 * @param ch readed symbol
+	 * @return return core set
+	 */
 	public HashSet<State> move(HashSet<State> sset,String ch){
 		Iterator<State> ite=sset.iterator();
 		State s=null;
@@ -444,6 +492,12 @@ public class DFAM {
 		return newSset;
 	}
 	
+	/**
+	 * Discard "//" annotation of file.
+	 * @param file_path
+	 * @return return a Reader which can read a symbol one time.
+	 * @throws IOException
+	 */
 	public StringReader preProcess(String file_path) throws IOException{					//discard annotation
 		BufferedReader br=new BufferedReader(new FileReader(file_path));
 		StringBuffer strbf=new StringBuffer();
